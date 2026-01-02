@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LNG Spot Market Dashboard</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet"
+    />
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <!-- HTML2PDF 라이브러리 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://raw.githack.com/eKoopmans/html2pdf/master/dist/html2pdf.bundle.js"></script>
+
+    <style>
+        :root {
+            /* 메인 색상 팔레트 */
+            --primary-color: #0f172a;
+            --secondary-color: #1e293b;
+            --accent-color: #3b82f6;
+            --accent-light: #60a5fa;
+            --accent-dark: #2563eb;
+
+            /* 텍스트 색상 */
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --text-light: #f8fafc;
+
+            /* 배경 색상 */
+            --bg-primary: #f8fafc;
+            --bg-secondary: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-sidebar: #0f172a;
+            --bg-sidebar-item: #1e293b;
+
+            /* 상태 색상 - 증가=빨강, 감소=파랑 */
+            --positive-color: #ef4444;
+            --negative-color: #3b82f6;
+            --neutral-color: #64748b;
+            --warning-color: #f59e0b;
+            --success-color: #10b981;
+
+            /* 테두리 및 그림자 */
+            --border-color: #e2e8f0;
+            --card-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+            --card-shadow-hover: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04);
+
+            /* 애니메이션 */
+            --transition-speed: 0.2s;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Pretendard', sans-serif;
+        }
+
+        html {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+        }
+
+        /* 사이드바 스타일 */
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(180deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: width 0.3s ease;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .collapse-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background-color: var(--accent-color);
+            border: none;
+            color: white;
+            padding: 8px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            z-index: 20;
+        }
+
+        /* 접힌 상태 */
+        .sidebar.collapsed {
+            width: 80px;
+        }
+
+        .sidebar.collapsed .sidebar-header h2,
+        .sidebar.collapsed .sidebar-item span,
+        .sidebar.collapsed .sidebar-parent .parent-content span,
+        .sidebar.collapsed .sidebar-submenu,
+        .sidebar.collapsed .sidebar-category {
+            display: none;
+        }
+
+        .sidebar.collapsed #toggle-sidebar {
+            left: 50%;
+            transform: translateX(-50%);
+            width: 32px;
+            padding: 8px;
+            right: auto;
+        }
+
+        .sidebar.collapsed > *:not(#toggle-sidebar) {
+            display: none !important;
+        }
+
+        .sidebar.collapsed .sidebar-header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px 0;
+            height: auto;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .sidebar.collapsed .sidebar-header .logo {
+            display: none;
+        }
+
+        .sidebar.collapsed .sidebar-parent .chevron {
+            transform: rotate(0deg);
+        }
+
+        .sidebar.collapsing #toggle-sidebar {
+            left: 50%;
+            transform: translateX(-50%);
+            width: 32px;
+            padding: 8px;
+            right: auto;
+        }
+
+        .sidebar:not(.collapsed) #toggle-sidebar {
+            left: auto;
+            transform: none;
+            right: 10px;
+            width: auto;
+            padding: 8px 10px;
+        }
+
+        /* 사이드바 헤더 */
+        .sidebar-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+        }
+
+        .sidebar-header .logo {
+            width: 24px;
+            height: 24px;
+            background-color: var(--accent-color);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.1rem;
+            color: var(--text-light);
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .sidebar-menu {
+            padding: 8px 0;
+        }
+
+        .sidebar-category {
+            padding: 10px 20px;
+            font-weight: 500;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .sidebar-category i {
+            margin-right: 8px;
+            font-size: 0.75rem;
+        }
+
+        /* 일반 메뉴 아이템 */
+        .sidebar-item {
+            padding: 8px 20px 8px 30px;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all var(--transition-speed);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-item i {
+            margin-right: 10px;
+            font-size: 0.85rem;
+            width: 20px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .sidebar-item:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid var(--accent-light);
+        }
+
+        .sidebar-item.active {
+            background-color: rgba(59, 130, 246, 0.2);
+            border-left: 3px solid var(--accent-color);
+            color: var(--accent-light);
+            font-weight: 500;
+        }
+
+        .sidebar-item.active i {
+            color: var(--accent-light);
+        }
+
+        /* 계층형 메뉴 */
+        .sidebar-parent {
+            padding: 8px 20px 8px 30px;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all var(--transition-speed);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-parent:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid var(--accent-light);
+        }
+
+        .sidebar-parent.expanded {
+            background-color: rgba(59, 130, 246, 0.1);
+            border-left: 3px solid var(--accent-color);
+            color: var(--accent-light);
+        }
+
+        .sidebar-parent .parent-content {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+
+        .sidebar-parent .parent-content i {
+            margin-right: 10px;
+            font-size: 0.85rem;
+            width: 20px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .sidebar-parent.expanded .parent-content i {
+            color: var(--accent-light);
+        }
+
+        .sidebar-parent .chevron {
+            font-size: 0.7rem;
+            transition: transform var(--transition-speed);
+            color: var(--text-muted);
+        }
+
+        .sidebar-parent.expanded .chevron {
+            transform: rotate(90deg);
+            color: var(--accent-light);
+        }
+
+        /* 서브메뉴 */
+        .sidebar-submenu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height var(--transition-speed) ease;
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-submenu.expanded {
+            max-height: 200px;
+        }
+
+        .sidebar-subitem {
+            padding: 6px 20px 6px 60px;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all var(--transition-speed);
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            border-left: 3px solid transparent;
+            opacity: 0.8;
+        }
+
+        .sidebar-subitem i {
+            margin-right: 8px;
+            font-size: 0.75rem;
+            width: 16px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .sidebar-subitem:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid var(--accent-light);
+            opacity: 1;
+        }
+
+        .sidebar-subitem.active {
+            background-color: rgba(59, 130, 246, 0.3);
+            border-left: 3px solid var(--accent-color);
+            color: var(--accent-light);
+            font-weight: 500;
+            opacity: 1;
+        }
+
+        .sidebar-subitem.active i {
+            color: var(--accent-light);
+        }
+
+        .sidebar.collapsing .sidebar-menu,
+        .sidebar.collapsing .sidebar-header h2,
+        .sidebar.collapsing .sidebar-category,
+        .sidebar.collapsing .sidebar-item span,
+        .sidebar.collapsing .sidebar-submenu,
+        .sidebar.collapsing .sidebar-header .logo,
+        .sidebar.collapsing .sidebar-parent .parent-content span {
+            display: none !important;
+        }
+
+        .sidebar-menu,
+        .sidebar-header h2,
+        .sidebar-category,
+        .sidebar-item span,
+        .sidebar-submenu,
+        .sidebar-parent .parent-content span {
+            display: block;
+            opacity: 1;
+            transition: none;
+        }
+
+        /* 메인 콘텐츠 스타일 - 수정됨 */
+        .main-content {
+            flex: 1;
+            padding: 16px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .dashboard-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+        }
+
+        .dashboard-title i {
+            margin-right: 10px;
+            color: var(--accent-color);
+            font-size: 1.1rem;
+        }
+
+        /* PDF 저장 버튼 */
+        #save-pdf-btn {
+            padding: 6px 12px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        #save-pdf-btn:hover {
+            background-color: var(--accent-dark);
+        }
+
+        /* 레이아웃 및 카드 스타일 - 수정됨 */
+        .two-column-layout {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .left-column {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .right-column {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 0;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            padding: 10px;
+            transition: box-shadow var(--transition-speed);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            min-height: 0;
+        }
+
+        .left-column .card {
+            flex: 1;
+            min-height: 400px;
+        }
+
+        .right-column .card {
+            flex: 1;
+            min-height: 200px;
+        }
+
+        .card:hover {
+            box-shadow: var(--card-shadow-hover);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .card-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+        }
+
+        .card-title i {
+            margin-right: 8px;
+            color: var(--accent-color);
+            font-size: 0.85rem;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .card-action-btn {
+            background-color: var(--bg-secondary);
+            border: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all var(--transition-speed);
+            font-size: 0.75rem;
+        }
+
+        .card-action-btn:hover {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .card-action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .card-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .scroll-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            min-height: 0;
+        }
+
+        /* 스크롤바 숨기기 */
+        .scroll-wrapper {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .scroll-wrapper::-webkit-scrollbar {
+            display: none;
+        }
+
+        .chart-container {
+            flex: 1;
+            position: relative;
+            min-height: 300px;
+            width: 100%;
+        }
+
+        .chart-container canvas {
+            position: absolute !important;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 2px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 0 1px var(--border-color);
+            font-size: 0.75rem;
+        }
+
+        .data-table th, .data-table td {
+            padding: 6px 8px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table th {
+            background-color: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tr:hover td {
+            background-color: rgba(241, 245, 249, 0.5);
+        }
+
+        .data-table td {
+            font-size: 0.75rem;
+            transition: background-color var(--transition-speed);
+        }
+
+        .data-table td:first-child {
+            text-align: left;
+            font-weight: 500;
+        }
+
+        .positive {
+            color: var(--positive-color);
+            font-weight: 500;
+        }
+
+        .negative {
+            color: var(--negative-color);
+            font-weight: 500;
+        }
+
+        .market-review {
+            line-height: 1.5;
+            color: var(--text-secondary);
+            font-size: 15px;
+            padding-right: 4px;
+        }
+
+        .market-review p {
+            margin-bottom: 8px;
+        }
+
+        .market-review strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* AI Market Trend Review 카드용 타임스탬프 */
+        .card-timestamp {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            z-index: 1;
+            background-color: var(--bg-card);
+            padding: 2px 4px;
+        }
+
+        .footer {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 10px 0;
+            border-top: 1px solid var(--border-color);
+            margin-top: 16px;
+            flex-shrink: 0;
+        }
+
+        #graph-notes {
+            margin-top: 8px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        #market-sentiment-content {
+            white-space: pre-wrap;
+        }
+
+        /* 에디터 스타일 */
+        #ai-review-save-btn,
+        #sentiment-save-btn {
+            background-color: var(--accent-color);
+            color: #ffffff;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color var(--transition-speed);
+            margin-top: 8px;
+        }
+
+        #ai-review-save-btn:hover,
+        #sentiment-save-btn:hover {
+            background-color: var(--accent-dark);
+        }
+
+        #ai-review-editor,
+        #sentiment-editor {
+            display: none;
+        }
+
+        #ai-review-editor trix-editor,
+        #sentiment-editor trix-editor {
+            font-size: 15px;
+            line-height: 1.5;
+            max-width: 100%;
+            min-height: 100px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        trix-editor .trix-content {
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .sidebar-item a {
+            color: inherit;
+            text-decoration: none;
+            flex: 1;
+        }
+
+        /* 로딩 스켈레톤 */
+        .loading-skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s ease-in-out infinite;
+            border-radius: 4px;
+            min-height: 20px;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: relative;
+                height: auto;
+            }
+
+            .two-column-layout {
+                flex-direction: column;
+            }
+
+            .left-column, .right-column {
+                width: 100%;
+            }
+        }
+    </style>
+
+    <!-- 차트 라이브러리 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <link rel="stylesheet" href="https://unpkg.com/trix/dist/trix.css">
+    <script src="https://unpkg.com/trix/dist/trix.umd.min.js"></script>
+    <link rel="icon" type="image/png" sizes="32x32" href="jkmttf_favicon.png">
+    <link rel="icon" type="image/x-icon" href="jkmttf_favicon.ico">
+</head>
+<body>
+    <!-- 좌측 사이드바 -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">M</div>
+            <h2>Market Dashboard</h2>
+        </div>
+        <div class="sidebar-menu">
+            <div class="sidebar-category">
+                <i class="fas fa-chart-line"></i> Weekly Market Trend
+            </div>
+            <div class="sidebar-item">
+                <i class="fas fa-oil-can"></i>
+                <a href='/'>Oil Market</a>
+            </div>
+            <div class="sidebar-item">
+                <i class="fas fa-burn"></i>
+                <a href="/HHP Market.html">HHP Market</a>
+            </div>
+            <div class="sidebar-item active">
+                <i class="fas fa-fire"></i>
+                <a href="/LNG Spot Market.html">LNG Spot Market</a>
+            </div>
+        </div>
+        <button id="toggle-sidebar" class="collapse-btn">
+            <i class="fas fa-bars"></i>
+        </button>
+    </div>
+
+    <!-- 메인 콘텐츠 -->
+    <div class="main-content">
+        <div class="dashboard-header">
+            <h1 class="dashboard-title">
+                <i class="fas fa-fire"></i> LNG Spot Market
+            </h1>
+            <button id="save-pdf-btn">PDF 저장</button>
+        </div>
+
+        <div class="two-column-layout">
+            <div class="left-column">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title" style="font-size: 1rem;">
+                            <i class="fas fa-chart-line"></i> Weekly JKM/TTF Price Trend ($/MMBtu)
+                        </div>
+                        <div class="card-actions">
+                            <button class="card-action-btn" title="새로고침" id="refresh-price-chart">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="chart-container">
+                            <canvas id="priceChart"></canvas>
+                        </div>
+                        <div id="graph-notes"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-column">
+                <!-- AI Market Trend Review 카드 -->
+                <div class="card">
+                    <div class="card-header" style="padding-top:5px; padding-bottom:10px;">
+                        <div class="card-title" style="font-size:1rem;">
+                            <i class="fas fa-robot"></i> AI Market Trend Review
+                        </div>
+                        <div class="card-actions">
+                            <button id="refresh-ai-review" class="card-action-btn" title="새로고침">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                            <button id="edit-ai-review-btn" class="card-action-btn" title="편집">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="scroll-wrapper">
+                            <div id="ai-review-content" class="market-review">
+                                <div class="loading-skeleton" style="height: 100px;"></div>
+                            </div>
+                        </div>
+                        <div id="ai-review-editor">
+                            <input id="ai-review-input" type="hidden" name="content">
+                            <trix-editor input="ai-review-input"></trix-editor>
+                            <button id="ai-review-save-btn">저장</button>
+                        </div>
+                    </div>
+                    <div class="card-timestamp">
+                        <div id="ai-timestamp">로딩 중...</div>
+                    </div>
+                </div>
+
+                <!-- Market Sentiment Comment 카드 -->
+                <div class="card">
+                    <div class="card-header" style="padding-top:5px; padding-bottom:10px;">
+                        <div class="card-title" style="font-size:1rem;">
+                            <i class="fas fa-chart-pie"></i> Market 평가 및 전망
+                        </div>
+                        <div class="card-actions">
+                            <button id="refresh-sentiment" class="card-action-btn" title="새로고침">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                            <button id="edit-sentiment-btn" class="card-action-btn" title="편집">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="scroll-wrapper">
+                            <div id="market-sentiment-content" class="market-review">
+                                <div class="loading-skeleton" style="height: 80px;"></div>
+                            </div>
+                        </div>
+                        <div id="sentiment-editor">
+                            <input id="sentiment-input" type="hidden" name="content">
+                            <trix-editor input="sentiment-input"></trix-editor>
+                            <button id="sentiment-save-btn">저장</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SHEET_ID = '1vVz_d5LCx9TuHVZ84fjnNN_AKf8CGxsVmLFtVN8nHiU';
+        const GRAPH_SHEET = 'Graph';
+        const WEEKLY_SHEET = 'Weekly Report';
+        const MARKET_OUTLOOK = '실무자 추가 영역';
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwDZViPKele-g6LLU3LNbkjB_YEhu56UPuAm_aDRg9A2exWzXU9iam8aSxtW6PspxJf1w/exec';
+
+        // 데이터 로딩 상태 관리
+        let isLoadingChart = false;
+        let isLoadingAI = false;
+        let isLoadingSentiment = false;
+
+        async function fetchSheetData(sheetName) {
+            const res = await fetch(
+                `https://opensheet.elk.sh/${SHEET_ID}/${encodeURIComponent(sheetName)}`
+            );
+            if (!res.ok) throw new Error(`Sheet fetch failed: ${res.status}`);
+            return await res.json();
+        }
+
+        async function loadReportTimestamp() {
+            try {
+                const weekly = await fetchSheetData(WEEKLY_SHEET);
+                const dataRow = weekly[0] || {};
+                const ts = dataRow['date'] || dataRow['Date'] || 'N/A';
+                document.getElementById('ai-timestamp').textContent = ts;
+            } catch (err) {
+                console.error('타임스탬프 로드 실패:', err);
+                document.getElementById('ai-timestamp').textContent = 'N/A';
+            }
+        }
+
+        async function loadGraphData() {
+            if (isLoadingChart) return;
+            isLoadingChart = true;
+
+            try {
+                const graph = await fetchSheetData(GRAPH_SHEET);
+
+                const validRows = graph.filter(r => {
+                    const v = r['Date'];
+                    return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+                });
+                const ascending = validRows.slice().reverse();
+                const recent15 = ascending.slice(-15);
+                const labels = recent15.map(r => r['Date']);
+                const jkmSeries = recent15.map(r => parseFloat(r['JKM']) || 0);
+                const ttfSeries = recent15.map(r => parseFloat(r['TTF']) || 0);
+
+                renderPriceChart(labels, jkmSeries, ttfSeries);
+
+                const headerKey = '날짜 기준';
+                const s2 = graph[0]?.[headerKey] || '';
+                const s3 = graph[1]?.[headerKey] || '';
+                const s4 = graph[2]?.[headerKey] || '';
+            } catch (err) {
+                console.error('차트 로드 실패:', err);
+            } finally {
+                isLoadingChart = false;
+            }
+        }
+
+        Chart.register(ChartDataLabels);
+
+        function renderPriceChart(labels, jkmData, ttfData) {
+            const ctx = document.getElementById('priceChart');
+            if (!ctx) return;
+
+            if (window.priceChart?.destroy) {
+                window.priceChart.destroy();
+            }
+
+            const formattedLabels = labels.map(d => {
+                const [year, month, day] = d.split('-');
+                return `${month}/${day}`;
+            });
+
+            window.priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: formattedLabels,
+                    datasets: [
+                        {
+                            label: 'JKM',
+                            data: jkmData,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(0,0,0,0)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            pointRadius: 2,
+                            spanGaps: false
+                        },
+                        {
+                            label: 'TTF',
+                            data: ttfData,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(0,0,0,0)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            pointRadius: 2,
+                            spanGaps: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        datalabels: {
+                            display: true,
+                            anchor: 'end',
+                            align: 'top',
+                            formatter: v => v.toFixed(2),
+                            font: { size: 10 }
+                        },
+                        legend: {
+                            position: 'bottom',
+                            labels: { font: { size: 11 }, usePointStyle: true, padding: 10 }
+                        },
+                        tooltip: {
+                            enabled: true,
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleColor: 'white',
+                            bodyColor: 'white',
+                            borderColor: 'rgba(255,255,255,0.2)',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                title: ctx => ctx[0].label,
+                                label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2) ?? 'N/A'}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'category',
+                            labels: formattedLabels,
+                            ticks: {
+                                font: { size: 10 },
+                                maxRotation: 0,
+                                autoSkip: false
+                            },
+                            grid: { display: false }
+                        },
+                        y: {
+                            min: 8,
+                            max: 13,
+                            title: { display: true, text: '$/MMBtu', font: { size: 10 } },
+                            ticks: { font: { size: 10 }, stepSize: 2 },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadAIReview() {
+            if (isLoadingAI) return;
+            isLoadingAI = true;
+
+            try {
+                const res = await fetch(`${WEB_APP_URL}?action=getLatest`);
+                if (!res.ok) throw new Error('리뷰 불러오기 실패');
+                const { content: reviewText, timestamp } = await res.json();
+                document.getElementById('ai-review-content').innerHTML = reviewText.split('\n').join('<br/>');
+                if (timestamp) {
+                    document.getElementById('ai-timestamp').textContent = timestamp;
+                }
+            } catch (err) {
+                console.error('AI 리뷰 로드 실패:', err);
+                document.getElementById('ai-review-content').innerHTML = '<p style="color: var(--warning-color);">데이터 로드 실패</p>';
+            } finally {
+                isLoadingAI = false;
+            }
+        }
+
+        async function loadMarketSentiment() {
+            if (isLoadingSentiment) return;
+            isLoadingSentiment = true;
+
+            try {
+                const res = await fetch(`${WEB_APP_URL}?action=getOutlookLatest`);
+                if (!res.ok) throw new Error('코멘트 불러오기 실패');
+                const { content: sentimentText } = await res.json();
+                document.getElementById('market-sentiment-content').innerHTML = sentimentText.split('\n').join('<br/>');
+            } catch (err) {
+                console.error('Market Sentiment 로드 실패:', err);
+                document.getElementById('market-sentiment-content').innerHTML = '<p style="color: var(--warning-color);">데이터 로드 실패</p>';
+            } finally {
+                isLoadingSentiment = false;
+            }
+        }
+
+        function attachSpinner(btnId, loaderFn) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            btn.addEventListener('click', async () => {
+                const icon = btn.querySelector('i');
+                btn.disabled = true;
+                icon.classList.add('fa-spin');
+                try {
+                    await loaderFn();
+                } finally {
+                    icon.classList.remove('fa-spin');
+                    btn.disabled = false;
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 초기 로드
+            Promise.all([
+                loadReportTimestamp(),
+                loadGraphData(),
+                loadAIReview(),
+                loadMarketSentiment()
+            ]).catch(err => console.error('초기 로드 실패:', err));
+
+            attachSpinner('refresh-price-chart', loadGraphData);
+            attachSpinner('refresh-ai-review', loadAIReview);
+            attachSpinner('refresh-sentiment', loadMarketSentiment);
+
+            const aiReviewContent = document.getElementById('ai-review-content');
+            const aiReviewEditorBox = document.getElementById('ai-review-editor');
+            const aiReviewInput = document.getElementById('ai-review-input');
+
+            const sentimentContent = document.getElementById('market-sentiment-content');
+            const sentimentEditorBox = document.getElementById('sentiment-editor');
+            const sentimentInput = document.getElementById('sentiment-input');
+
+            // 사이드바 토글
+            const sidebar = document.querySelector('.sidebar');
+            const mainContent = document.querySelector('.main-content');
+            const toggleBtn = document.getElementById('toggle-sidebar');
+
+            toggleBtn.addEventListener('click', function() {
+                const icon = this.querySelector('i');
+                if (sidebar.classList.contains('collapsed')) {
+                    sidebar.classList.remove('collapsed');
+                    sidebar.classList.add('collapsing');
+                    mainContent.classList.remove('collapsed');
+
+                    sidebar.addEventListener('transitionend', function handler(e) {
+                        if (e.propertyName === 'width') {
+                            sidebar.classList.remove('collapsing');
+                            sidebar.removeEventListener('transitionend', handler);
+                        }
+                    });
+                } else {
+                    sidebar.classList.add('collapsed');
+                    mainContent.classList.add('collapsed');
+                }
+                icon.className = 'fas fa-bars';
+            });
+
+            // AI Review 편집
+            document.getElementById('edit-ai-review-btn').addEventListener('click', () => {
+                if (aiReviewEditorBox.style.display === 'block') {
+                    aiReviewEditorBox.style.display = 'none';
+                } else {
+                    aiReviewInput.value = aiReviewContent.innerText.trim();
+                    aiReviewEditorBox.style.display = 'block';
+                }
+            });
+
+            document.getElementById('ai-review-save-btn').addEventListener('click', async () => {
+                const payload = encodeURIComponent(aiReviewInput.value);
+                try {
+                    const res = await fetch(WEB_APP_URL, {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+                        body: `action=updateReview&content=${payload}`
+                    });
+                    if ((await res.text()) === 'OK') {
+                        alert('저장되었습니다.');
+                        aiReviewEditorBox.style.display = 'none';
+                        await loadAIReview();
+                    } else throw new Error();
+                } catch {
+                    alert('저장에 실패했습니다.');
+                }
+            });
+
+            // Sentiment 편집
+            document.getElementById('edit-sentiment-btn').addEventListener('click', () => {
+                if (sentimentEditorBox.style.display === 'block') {
+                    sentimentEditorBox.style.display = 'none';
+                } else {
+                    sentimentInput.value = sentimentContent.innerText.trim();
+                    sentimentEditorBox.style.display = 'block';
+                }
+            });
+
+            document.getElementById('sentiment-save-btn').addEventListener('click', async () => {
+                try {
+                    const res = await fetch(WEB_APP_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: `action=updateMarketSentiment&content=${encodeURIComponent(sentimentInput.value)}`
+                    });
+                    const text = await res.text();
+                    if (!res.ok || text !== 'OK') {
+                        console.error('저장 실패', { status: res.status, body: text });
+                        alert(`저장 실패 (HTTP ${res.status})`);
+                        return;
+                    }
+                    sentimentEditorBox.style.display = 'none';
+                    await loadMarketSentiment();
+                    alert('저장되었습니다.');
+                } catch (e) {
+                    console.error('요청 에러', e);
+                    alert(`저장 에러: ${e.message}`);
+                }
+            });
+
+            // PDF 저장
+            document.getElementById('save-pdf-btn').addEventListener('click', async function() {
+                const element = document.querySelector('.main-content');
+                const scrollAreas = element.querySelectorAll('.scroll-wrapper') || [];
+
+                scrollAreas.forEach(area => {
+                    area.dataset.originalHeight = area.style.height;
+                    area.dataset.originalOverflow = area.style.overflow;
+                    area.style.height = area.scrollHeight + 'px';
+                    area.style.overflow = 'visible';
+                });
+
+                const now = new Date();
+                const pad = n => n.toString().padStart(2, '0');
+                const fileName = `LNG_Spot_Market_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.pdf`;
+
+                const opt = {
+                    margin: 0,
+                    filename: fileName,
+                    image: { type: 'jpeg', quality: 1 },
+                    html2canvas: {
+                        scale: 4,
+                        useCORS: true,
+                        scrollY: -window.scrollY
+                    },
+                    jsPDF: {
+                        orientation: 'landscape',
+                        unit: 'px',
+                        format: [element.scrollWidth, element.scrollHeight]
+                    }
+                };
+
+                await html2pdf().set(opt).from(element).save()
+                    .catch(err => console.error('PDF 저장 실패:', err));
+
+                scrollAreas.forEach(area => {
+                    area.style.height = area.dataset.originalHeight;
+                    area.style.overflow = area.dataset.originalOverflow;
+                });
+            });
+        });
+    </script>
+</body>
+</html>
