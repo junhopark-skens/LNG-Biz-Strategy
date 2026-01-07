@@ -1,0 +1,2829 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HHP Market Dashboard</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="icon" type="image/png" sizes="32x32" href="hhp_favicon.png">
+    <link rel="icon" type="image/x-icon" href="hhp_favicon.ico">
+    <style>
+      :root {
+        /* 메인 색상 팔레트 */
+        --primary-color: #0f172a;
+        --secondary-color: #1e293b;
+        --accent-color: #3b82f6;
+        --accent-light: #60a5fa;
+        --accent-dark: #2563eb;
+
+        /* 텍스트 색상 */
+        --text-primary: #0f172a;
+        --text-secondary: #475569;
+        --text-muted: #94a3b8;
+        --text-light: #f8fafc;
+
+        /* 배경 색상 */
+        --bg-primary: #f8fafc;
+        --bg-secondary: #f1f5f9;
+        --bg-card: #ffffff;
+        --bg-sidebar: #0f172a;
+        --bg-sidebar-item: #1e293b;
+
+        /* 상태 색상 - 증가=빨강, 감소=파랑 */
+        --positive-color: #ef4444; /* 빨강 (증가) */
+        --negative-color: #3b82f6; /* 파랑 (감소) */
+        --neutral-color: #64748b;
+        --warning-color: #f59e0b;
+        --success-color: #10b981;
+
+        /* 테두리 및 그림자 */
+        --border-color: #e2e8f0;
+        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05),
+          0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.08),
+          0 4px 6px -2px rgba(0, 0, 0, 0.04);
+
+        /* 애니메이션 */
+        --transition-speed: 0.2s;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Pretendard", sans-serif;
+      }
+
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        display: flex;
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* 사이드바 스타일 */
+      .sidebar {
+        width: 250px;
+        background: linear-gradient(
+          180deg,
+          var(--primary-color) 0%,
+          var(--secondary-color) 100%
+        );
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+        position: fixed;
+        height: 100vh;
+        overflow-y: auto;
+        transition: width 0.3s ease, opacity 0.3s ease;
+        overflow: hidden;
+        position: relative;
+      }
+	  
+	  /* 사이드바 수축 금지 + 폭 고정 */
+.sidebar { flex: 0 0 250px; }
+
+/* 메인 영역이 줄어들 수 있게 (min-content 폭으로 버티지 않게) */
+.main-content { min-width: 0; }
+
+/* 접기 상태에서도 basis 동기화 */
+.sidebar.collapsed { flex-basis: 80px; }
+
+:root {
+  --commentary-h: 100px;   /* 원하는 값으로만 조정 */
+  --main-chart-h: 160px;   /* 2번용: 생산/수요 메인차트 공통 높이 */
+}
+
+/* market-review의 flex:1 무력화 + 고정 높이 */
+#production-commentary,
+#demand-commentary {
+  flex: 0 0 var(--commentary-h);
+  height: var(--commentary-h);
+  max-height: var(--commentary-h);
+  overflow-y: auto;
+}
+
+      .collapse-btn {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        background-color: var(--accent-color);
+        border: none;
+        color: white;
+        padding: 8px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s;
+        z-index: 20;
+      }
+
+      /* sidebar가 접힌 상태의 스타일 */
+      .sidebar.collapsed {
+        width: 80px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .sidebar.collapsed .sidebar-header h2,
+      .sidebar.collapsed .sidebar-item span,
+      .sidebar.collapsed .sidebar-parent .parent-content span,
+      .sidebar.collapsed .sidebar-submenu,
+      .sidebar.collapsed .sidebar-category {
+        display: none;
+      }
+
+      .sidebar.collapsed .sidebar-menu,
+      .sidebar.collapsed .sidebar-header h2,
+      .sidebar.collapsed .sidebar-category,
+      .sidebar.collapsed .sidebar-item span,
+      .sidebar.collapsed .sidebar-submenu,
+      .sidebar.collapsed .sidebar-parent .parent-content span {
+        display: none;
+        transition-delay: 0s;
+      }
+
+      .sidebar.collapsed #toggle-sidebar {
+        display: block;
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: var(--accent-color);
+        color: white;
+        padding: 8px;
+        border-radius: 4px;
+        width: 40px;
+        cursor: pointer;
+      }
+
+      .sidebar.collapsed > *:not(#toggle-sidebar) {
+        display: none !important;
+      }
+
+      /* 사이드바 접혔을 때, 토글 버튼만 보이도록 */
+      .sidebar.collapsed .sidebar-header {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 10px 0;
+        height: 100%;
+        flex-direction: column;
+        position: relative;
+      }
+
+      .sidebar.collapsed .sidebar-header #toggle-sidebar {
+        display: block;
+      }
+
+      .sidebar.collapsed .sidebar-header .logo {
+        display: none;
+      }
+
+      .sidebar.collapsed .sidebar-parent .chevron {
+        transform: rotate(0deg);
+      }
+
+      .main-content.collapsed {
+        margin-left: 0px;
+      }
+
+      .sidebar.collapsing .sidebar-menu,
+      .sidebar.collapsing .sidebar-header h2,
+      .sidebar.collapsing .sidebar-category,
+      .sidebar.collapsing .sidebar-item span,
+      .sidebar.collapsing .sidebar-submenu,
+      .sidebar.collapsing .sidebar-header .logo,
+      .sidebar.collapsing .sidebar-parent .parent-content span {
+        display: none !important;
+      }
+
+      .sidebar-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+      }
+
+      .sidebar-header h2 {
+        font-size: 1.1rem;
+        color: var(--text-light);
+        font-weight: 600;
+        margin-left: 10px;
+      }
+
+      .sidebar-header .logo {
+        width: 24px;
+        height: 24px;
+        background-color: var(--accent-color);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+      }
+
+      .sidebar-menu {
+        padding: 8px 0;
+      }
+
+      .sidebar-category {
+        padding: 10px 20px;
+        font-weight: 500;
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+        margin-top: 8px;
+      }
+
+      .sidebar-category i {
+        margin-right: 8px;
+        font-size: 0.75rem;
+      }
+
+      .sidebar-item {
+        padding: 8px 20px 8px 30px;
+        color: var(--text-light);
+        cursor: pointer;
+        transition: all var(--transition-speed);
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        border-left: 3px solid transparent;
+      }
+
+      .sidebar-item i {
+        margin-right: 10px;
+        font-size: 0.85rem;
+        width: 20px;
+        text-align: center;
+        color: var(--text-muted);
+      }
+
+      .sidebar-item:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-left: 3px solid var(--accent-light);
+      }
+
+      .sidebar-item.active {
+        background-color: rgba(59, 130, 246, 0.2);
+        border-left: 3px solid var(--accent-color);
+        color: var(--accent-light);
+        font-weight: 500;
+      }
+
+      .sidebar-item.active i {
+        color: var(--accent-light);
+      }
+
+      /* 계층형 메뉴 스타일 */
+      .sidebar-parent {
+        padding: 8px 20px 8px 30px;
+        color: var(--text-light);
+        cursor: pointer;
+        transition: all var(--transition-speed);
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-left: 3px solid transparent;
+      }
+
+      .sidebar-parent:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-left: 3px solid var(--accent-light);
+      }
+
+      .sidebar-parent.expanded {
+        background-color: rgba(59, 130, 246, 0.1);
+        border-left: 3px solid var(--accent-color);
+        color: var(--accent-light);
+      }
+
+      .sidebar-parent .parent-content {
+        display: flex;
+        align-items: center;
+        flex: 1;
+      }
+
+      .sidebar-parent .parent-content i {
+        margin-right: 10px;
+        font-size: 0.85rem;
+        width: 20px;
+        text-align: center;
+        color: var(--text-muted);
+      }
+
+      .sidebar-parent.expanded .parent-content i {
+        color: var(--accent-light);
+      }
+
+      .sidebar-parent .chevron {
+        font-size: 0.7rem;
+        transition: transform var(--transition-speed);
+        color: var(--text-muted);
+      }
+
+      .sidebar-parent.expanded .chevron {
+        transform: rotate(90deg);
+        color: var(--accent-light);
+      }
+
+      .sidebar-submenu {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height var(--transition-speed) ease;
+        background-color: rgba(0, 0, 0, 0.1);
+      }
+
+      .sidebar-submenu.expanded {
+        max-height: 200px;
+      }
+
+      .sidebar-subitem {
+        padding: 6px 20px 6px 60px;
+        color: var(--text-light);
+        cursor: pointer;
+        transition: all var(--transition-speed);
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        border-left: 3px solid transparent;
+        opacity: 0.8;
+      }
+
+      .sidebar-subitem i {
+        margin-right: 8px;
+        font-size: 0.75rem;
+        width: 16px;
+        text-align: center;
+        color: var(--text-muted);
+      }
+
+      .sidebar-subitem:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-left: 3px solid var(--accent-light);
+        opacity: 1;
+      }
+
+      .sidebar-subitem.active {
+        background-color: rgba(59, 130, 246, 0.3);
+        border-left: 3px solid var(--accent-color);
+        color: var(--accent-light);
+        font-weight: 500;
+        opacity: 1;
+      }
+
+      .sidebar-subitem.active i {
+        color: var(--accent-light);
+      }
+
+      .sidebar-menu,
+      .sidebar-header h2,
+      .sidebar-category,
+      .sidebar-item span,
+      .sidebar-submenu,
+      .sidebar-parent .parent-content span {
+        display: block;
+        opacity: 1;
+        transition: none;
+      }
+
+      /* 메인 콘텐츠 스타일 */
+      .main-content {
+        flex-grow: 1;
+        padding: 16px;
+        transition: all var(--transition-speed);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .dashboard-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+      }
+
+      .dashboard-title i {
+        margin-right: 10px;
+        color: var(--accent-color);
+        font-size: 1.1rem;
+      }
+
+      /* 2. timestamp 부분과 PDF 버튼 사이에 고정 간격을 넣기 위한 설정 */
+      .dashboard-header .timestamp {
+        margin-right: 40px;
+      }
+
+      /* 페이지 컨테이너 */
+      .page-container {
+        display: none;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      .page-container.active {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .two-column-layout {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .left-column,
+      .right-column {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 400px;
+      }
+      /* 카드 스타일 */
+      .card {
+        background-color: var(--bg-card);
+        border-radius: 10px;
+        box-shadow: var(--card-shadow);
+        padding: 12px;
+        transition: all var(--transition-speed);
+        border: 1px solid var(--border-color);
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        position: relative; /* card-timestamp 위치 조정을 위해 추가 */
+      }
+
+      .card:hover {
+        box-shadow: var(--card-shadow-hover);
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+      }
+
+      .card-title i {
+        margin-right: 8px;
+        color: var(--accent-color);
+        font-size: 0.9rem;
+      }
+
+      .card-actions {
+        display: flex;
+        gap: 6px;
+      }
+
+      .card-action-btn {
+        background-color: var(--bg-secondary);
+        border: none;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--text-secondary);
+        transition: all var(--transition-speed);
+      }
+
+      .card-action-btn:hover {
+        background-color: var(--accent-color);
+        color: white;
+      }
+
+      /* AI Market Trend Review 카드용 타임스탬프 */
+      .card-timestamp {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        position: sticky;
+        bottom: 0;
+        right: 0;
+        z-index: 1;
+        text-align: right;
+      }
+
+      /* 차트 컨테이너 */
+      .chart-container {
+        width: 100%;
+        height: 250px;
+        margin: 8px 0;
+        position: relative;
+        flex-grow: 1;
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 10px;
+        min-height: 120px;
+        max-height: 300px;
+      }
+
+      /* 데이터 테이블 */
+      .data-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin: 8px 0;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 0 0 1px var(--border-color);
+        font-size: 0.85rem;
+      }
+
+      .data-table th,
+      .data-table td {
+        padding: 8px 10px;
+        text-align: center;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .data-table th {
+        background-color: var(--bg-secondary);
+        font-weight: 600;
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .data-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      .data-table tr:hover td {
+        background-color: rgba(241, 245, 249, 0.5);
+      }
+
+      .data-table td {
+        font-size: 0.85rem;
+        transition: background-color var(--transition-speed);
+      }
+
+      .positive {
+        color: var(--positive-color);
+        font-weight: 500;
+      }
+
+      .negative {
+        color: var(--negative-color);
+        font-weight: 500;
+      }
+
+      .neutral {
+        color: var(--neutral-color);
+      }
+
+      /* Market Fundamentals 전용 그리드 */
+      .fundamentals-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 16px;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      /* 카드 내용 영역 */
+      .card-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow-y: hidden; /* ← overflow: hidden → overflow-y: auto 로 변경 */
+      }
+
+      /* 로딩 애니메이션 */
+      .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+      }
+
+      .loading-spinner {
+        border: 3px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        border-top: 3px solid var(--accent-color);
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* 반응형 디자인 */
+      @media (max-width: 768px) {
+        .sidebar {
+          width: 100%;
+          height: auto;
+          position: relative;
+        }
+        .main-content {
+          margin-left: 0;
+          height: auto;
+          overflow: auto;
+        }
+        .fundamentals-grid {
+          grid-template-columns: 1fr;
+          grid-template-rows: auto;
+          height: auto;
+        }
+      }
+
+      /* 오류 메시지 */
+      .error-message {
+        color: #e74c3c;
+        padding: 10px;
+        text-align: center;
+        background-color: #fef2f2;
+        border-radius: 6px;
+        margin: 10px 0;
+        font-size: 0.85rem;
+      }
+
+      .sidebar-item a {
+        color: inherit;
+        text-decoration: none;
+        flex: 1;
+      }
+
+      /* 페이드 인 애니메이션 */
+      .fade-in {
+        animation: fadeIn 0.3s ease-in;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* 지역별 테이블 스타일 */
+      .regional-table th:first-child,
+      .regional-table td:first-child {
+        text-align: left;
+        padding-left: 15px;
+      }
+
+      /* Overview 전용 그리드 */
+      .grid-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 16px;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      /* 마켓 리뷰 */
+      .market-review {
+        line-height: 1.5;
+        color: var(--text-secondary);
+        overflow-y: auto;
+        font-size: 15px;
+        flex: 1;
+		width: 780px;
+        position: relative;
+        padding-bottom: 1.5rem;
+		overflow-wrap: anywhere;
+		word-break: break-word;
+		max-width: 100%;
+      }
+	  
+      .market-review p {
+        margin-bottom: 8px;
+      }
+
+      .market-review strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+	  
+	  .fundamentals-grid > .card { min-width: 0; }
+	  .card-content { overflow-y: auto; }
+	  .data-table { table-layout: fixed; }
+
+      /* 푸터 */
+      .footer {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-align: center;
+        padding: 10px 0;
+        border-top: 1px solid var(--border-color);
+        margin-top: 16px;
+      }
+
+      /* 스크롤바 스타일 */
+      .market-review::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      .market-review::-webkit-scrollbar-track {
+        background: var(--bg-secondary);
+        border-radius: 10px;
+      }
+
+      .market-review::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 10px;
+      }
+
+      .market-review::-webkit-scrollbar-thumb:hover {
+        background: var(--accent-light);
+      }
+
+      #gas-storage-table th,
+      #gas-storage-table td {
+        width: 20%;
+      }
+
+      /* Market Fundamentals 테이블 열 너비 통일 - 추가된 부분 */
+      #production-table th,
+      #production-table td {
+        width: 33.33%;
+      }
+
+      #regional-table th:first-child,
+      #regional-table td:first-child {
+        width: 25%;
+        text-align: left;
+        padding-left: 15px;
+      }
+
+      #regional-table th:not(:first-child),
+      #regional-table td:not(:first-child) {
+        width: 25%;
+      }
+
+      /* Demand 테이블 열 너비 (3개 열) */
+      #demand-table th,
+      #demand-table td {
+        width: 33.33%;
+      }
+
+      /* LNG 테이블 열 너비 (3개 열) */
+      #lng-table th,
+      #lng-table td {
+        width: 33.33%;
+      }
+
+	  /* 1. 에디터 내 '저장' 버튼 스타일 */
+#review-save-btn,
+#outlook-save-btn {
+  background-color: var(--accent-color);
+  color: #ffffff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--transition-speed);
+}
+#review-save-btn:hover,
+#outlook-save-btn:hover {
+  background-color: var(--accent-dark);
+}
+
+#review-editor,
+#outlook-editor {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* 2. 에디터 본문 폰트 크기 본문과 일치 */
+#review-editor trix-editor,
+#outlook-editor trix-editor {
+  font-size: 15px; /* 본문 폰트 크기에 맞춤 */
+  line-height: 1.5;
+  width: 780px;
+  max-width: 100%;
+  max-height: 100px;
+  overflow-y: auto;
+  display: block;
+  box-sizing: border-box;
+}
+
+trix-editor .trix-content {
+  font-size: 15px;
+  line-height: 1.5;
+  width: 780px;
+  max-width: 100%;
+}
+
+/* Preserve scrolling but hide scrollbar */
+.market-review,
+#ai-review-editor,
+#sentiment-editor {
+  overflow-y: auto;
+  -ms-overflow-style: none;  /* IE 10+ */
+  scrollbar-width: none;     /* Firefox */
+}
+.market-review::-webkit-scrollbar,
+#ai-review-editor::-webkit-scrollbar,
+#sentiment-editor::-webkit-scrollbar {
+  display: none;             /* Chrome, Safari, Opera */
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://raw.githack.com/eKoopmans/html2pdf/master/dist/html2pdf.bundle.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/trix/dist/trix.css" />
+    <script src="https://unpkg.com/trix/dist/trix.umd.min.js"></script>
+  </head>
+  <body>
+    <!-- 좌측 사이드바 메뉴 -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">M</div>
+        <h2>Market Dashboard</h2>
+      </div>
+      <div class="sidebar-menu">
+        <div class="sidebar-category">
+          <i class="fas fa-chart-line"></i> Weekly Market Trend
+        </div>
+
+        <!-- Oil Market -->
+        <div class="sidebar-item">
+          <i class="fas fa-oil-can"></i>
+          <a href="/index.html">Oil Market</a>
+        </div>
+
+        <!-- HHP Market (계층형) -->
+        <div class="sidebar-parent" id="hhp-parent">
+          <div class="parent-content">
+            <i class="fas fa-burn"></i>
+            <span>HHP Market</span>
+          </div>
+          <i class="fas fa-chevron-right chevron"></i>
+        </div>
+        <div class="sidebar-submenu" id="hhp-submenu">
+          <div class="sidebar-subitem active" data-page="fundamentals">
+            <i class="fas fa-chart-bar"></i>
+            <span>Market Fundamentals</span>
+          </div>
+          <div class="sidebar-subitem" data-page="overview">
+            <i class="fas fa-chart-area"></i>
+            <span>Overview</span>
+          </div>
+        </div>
+
+        <!-- LNG Spot Market -->
+        <div class="sidebar-item">
+          <i class="fas fa-fire"></i>
+          <a href="/LNG Spot Market.html">LNG Spot Market</a>
+        </div>
+      </div>
+      <button id="toggle-sidebar" class="collapse-btn">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+
+    <!-- 메인 콘텐츠 영역 -->
+    <div class="main-content">
+      <div class="dashboard-header">
+        <h1 class="dashboard-title">
+          <i class="fas fa-burn"></i> HHP Market - Market Fundamentals
+        </h1>
+        <button
+          id="save-pdf-btn"
+          style="
+            padding: 6px 12px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+          "
+        >
+          PDF 저장
+        </button>
+      </div>
+
+      <!-- 기존 two-column-layout 구조 제거 -->
+      <div class="page-container" id="overview-page">
+        <div class="grid-container">
+          <!-- 카드 1: Weekly U.S. Natural Gas Storage (우상단 → 좌상단) -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="fas fa-database"></i> Weekly U.S. Natural Gas Storage
+              </div>
+              <div class="card-actions">
+                <button
+                  class="card-action-btn"
+                  title="새로고침"
+                  id="refresh-gas-storage"
+                >
+                  <i class="fas fa-sync-alt"></i>
+                </button>
+              </div>
+            </div>
+            <div class="card-content">
+              <table class="data-table" id="gas-storage-table">
+                <thead>
+                  <tr>
+                    <th>This Week (bcf)</th>
+                    <th>%</th>
+                    <th>WoW</th>
+                    <th>YoY</th>
+                    <th>5Y Avg.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Loading...</td>
+                    <td>Loading...</td>
+                    <td>Loading...</td>
+                    <td>Loading...</td>
+                    <td>Loading...</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="chart-container">
+                <canvas id="gasStorageChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- 카드 2: AI Market Trend Review (좌상단 → 우상단) -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="fas fa-robot"></i> AI Market Trend Review
+              </div>
+              <div class="card-actions">
+                <button
+                  class="card-action-btn"
+                  title="새로고침"
+                  id="refresh-market-review"
+                >
+                  <i class="fas fa-sync-alt"></i>
+                </button>
+                <button
+                  id="edit-review-btn"
+                  class="card-action-btn"
+                  title="편집"
+                >
+                  <i class="fas fa-edit"></i>
+                </button>
+              </div>
+            </div>
+            <div class="card-content">
+              <div class="market-review" id="market-review-content">
+                <p>Loading...</p>
+              </div>
+              <!-- editor must live inside the same card-content -->
+              <div id="review-editor" style="display: none; margin-top: 8px">
+                <!-- hidden input + Trix editor -->
+                <input id="review-input" type="hidden" name="content" />
+                <trix-editor input="review-input"></trix-editor>
+                <button id="review-save-btn" style="margin-top: 4px">
+                  저장
+                </button>
+              </div>
+            </div>
+            <div class="card-timestamp" id="review-timestamp">Loading...</div>
+          </div>
+
+          <!-- 카드 3: Weekly HHP Futures Trend -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="fas fa-chart-line"></i> Weekly HHP Futures Trend
+                ($/MMBtu)
+              </div>
+            </div>
+            <div class="card-content">
+              <div class="chart-container">
+                <canvas id="hhpPriceChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- 카드 4: Market 평가 및 전망 -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="fas fa-chart-pie"></i> Market Analysis & Forecast
+              </div>
+              <div class="card-actions">
+                <button
+                  class="card-action-btn"
+                  title="새로고침"
+                  id="refresh-market-outlook"
+                >
+                  <i class="fas fa-sync-alt"></i>
+                </button>
+                <button
+                  id="edit-outlook-btn"
+                  class="card-action-btn"
+                  title="편집"
+                >
+                  <i class="fas fa-edit"></i>
+                </button>
+              </div>
+            </div>
+            <div class="market-review" id="market-outlook-content">
+              <p>Loading...</p>
+            </div>
+            <!-- editor must live inside the same card-content -->
+            <div id="outlook-editor" style="display: none; margin-top: 8px">
+              <!-- hidden input + Trix editor -->
+              <input id="outlook-input" type="hidden" name="content" />
+              <trix-editor input="outlook-input"></trix-editor>
+              <button id="outlook-save-btn" style="margin-top: 4px">
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Market Fundamentals 페이지 -->
+      <div class="page-container active" id="fundamentals-page">
+        <div class="fundamentals-grid">
+          <!-- 좌측: 미국 전체 천연가스 생산량 (전체 높이) -->
+          <div class="card" style="grid-row: 1 / 3;">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="fas fa-industry"></i> U.S. Natural Gas Production
+              </div>
+              <div class="card-actions">
+                <button
+                  class="card-action-btn"
+                  title="새로고침"
+                  id="refresh-production"
+                >
+                  <i class="fas fa-sync-alt"></i>
+                </button>
+              </div>
+            </div>
+            <div class="card-content">
+              <table class="data-table" id="production-table">
+                <thead>
+                  <tr>
+                    <th>Volume (bcf/d)</th>
+                    <th>WoW</th>
+                    <th>YoY</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><div class="loading-spinner"></div></td>
+                    <td><div class="loading-spinner"></div></td>
+                    <td><div class="loading-spinner"></div></td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="chart-container" style="height: 150px;">
+                <canvas id="totalProductionChart"></canvas>
+              </div>
+              <div style="margin-top: 0px;">
+                <div class="chart-container" style="height: 256px;">
+                  <canvas id="regionalProductionChart"></canvas>
+                </div>
+              </div>
+              <div style="margin-top: 20px; padding: 12px; background-color: var(--bg-secondary); border-radius: 6px; border-left: 3px solid var(--accent-color); position: relative;">
+                <div class="card-actions" style="position: absolute; top: 8px; right: 8px;">
+                  <button
+                    class="card-action-btn"
+                    title="새로고침"
+                    id="refresh-production-commentary"
+                  >
+                    <i class="fas fa-sync-alt"></i>
+                  </button>
+                  <button
+                    id="edit-production-commentary-btn"
+                    class="card-action-btn"
+                    title="편집"
+                  >
+                    <i class="fas fa-edit"></i>
+                  </button>
+                </div>
+                <div id="production-commentary" class="market-review" style="margin-right:60px; min-height:60px;">
+                  <p>Loading...</p>
+                </div>
+                <div id="production-commentary-editor" style="display: none; margin-top: 8px">
+                  <input id="production-commentary-input" type="hidden" name="content" />
+                  <trix-editor input="production-commentary-input"></trix-editor>
+                </div>
+                <div class="card-timestamp" id="production-commentary-timestamp">Loading...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 우측: 미국 천연가스 수요 (전체 높이) -->
+          <div class="card" style="grid-row: 1 / 3;">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="fas fa-chart-line"></i> U.S. Natural Gas Demand
+              </div>
+              <div class="card-actions">
+                <button
+                  class="card-action-btn"
+                  title="새로고침"
+                  id="refresh-demand"
+                >
+                  <i class="fas fa-sync-alt"></i>
+                </button>
+              </div>
+            </div>
+            <div class="card-content">
+              <table class="data-table" id="demand-table">
+                <thead>
+                  <tr>
+                    <th>Volume (bcf/d)</th>
+                    <th>WoW</th>
+                    <th>YoY</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Loading...</td>
+                    <td>Loading...</td>
+                    <td>Loading...</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="chart-container" style="height: 120px;">
+                <canvas id="totalDemandChart"></canvas>
+              </div>
+              <div style="margin-top: 0px;">
+                <table class="data-table" id="lng-table">
+                  <thead>
+                    <tr>
+                      <th>Volume (bcf/d)</th>
+                      <th>WoW</th>
+                      <th>YoY</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Loading...</td>
+                      <td>Loading...</td>
+                      <td>Loading...</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="chart-container" style="height: 180px;">
+                  <canvas id="lngFeedgasChart"></canvas>
+                </div>
+              </div>
+              <div style="margin-top: 20px; padding: 12px; background-color: var(--bg-secondary); border-radius: 6px; border-left: 3px solid var(--accent-color); position: relative;">
+                <div class="card-actions" style="position: absolute; top: 8px; right: 8px;">
+                  <button
+                    class="card-action-btn"
+                    title="새로고침"
+                    id="refresh-demand-commentary"
+                  >
+                    <i class="fas fa-sync-alt"></i>
+                  </button>
+                  <button
+                    id="edit-demand-commentary-btn"
+                    class="card-action-btn"
+                    title="편집"
+                  >
+                    <i class="fas fa-edit"></i>
+                  </button>
+                </div>
+                <div id="demand-commentary" class="market-review" style="margin-right:60px; min-height:60px;">
+                  <p>Loading...</p>
+                </div>
+                <div id="demand-commentary-editor" style="display: none; margin-top: 8px">
+                  <input id="demand-commentary-input" type="hidden" name="content" />
+                  <trix-editor input="demand-commentary-input"></trix-editor>
+                </div>
+                <div class="card-timestamp" id="demand-commentary-timestamp">Loading...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const SHEET_ID = "114wSjisuDPtfYwrsGKdWe0XaSrGOi6H5sQzfeWV8ZlE";
+      const WEB_APP_URL =
+        "https://script.google.com/macros/s/AKfycbwlMRVSrzoo4gZE4AHk2JW_zpO_1lViid3zMnNlgREDFATD2VkyVp4kd-izv7HubYRj/exec";
+
+      async function fetchSheetData(sheetName) {
+        try {
+          const url = `https://opensheet.elk.sh/${SHEET_ID}/${encodeURIComponent(
+            sheetName
+          )}`;
+          console.log(`Fetching data from: ${url}`);
+          const response = await fetch(url);
+          if (!response.ok)
+            throw new Error(`HTTP error! status: ${response.status}`);
+          const data = await response.json();
+          console.log(`✅ ${sheetName} 데이터 로드 성공:`, data);
+          return data;
+        } catch (error) {
+          console.error(`❌ ${sheetName} 데이터 로드 실패:`, error);
+          return null;
+        }
+      }
+
+      function formatChangeValue(value) {
+        if (!value || value === "N/A" || value === "") return "N/A";
+        const num = parseFloat(value.replace(/,/g, ""));
+        if (isNaN(num)) return "N/A";
+        return `${num > 0 ? "+" : ""}${num.toFixed(2)}`;
+      }
+      function formatIntegerValue(value) {
+        if (!value || value === "N/A" || value === "") return "N/A";
+        const num = parseFloat(value.replace(/,/g, ""));
+        if (isNaN(num)) return "N/A";
+        return `${num > 0 ? "+" : ""}${Math.round(num)}`;
+      }
+      function getChangeClass(value) {
+        if (
+          !value ||
+          ["N/A", "na", "#n/a", "-"].includes(value.toString().toLowerCase())
+        )
+          return "neutral";
+        const num = parseFloat(value.replace(/,/g, ""));
+        if (isNaN(num)) return "neutral";
+        return num > 0 ? "positive" : num < 0 ? "negative" : "neutral";
+      }
+      function parseNumericValue(value) {
+        if (value === null || value === undefined) return null;
+        let s = String(value).trim().toLowerCase();
+        if (["n/a", "na", "#n/a", "-"].includes(s)) return null;
+        s = String(value).replace(/,/g, "").trim();
+        const n = parseFloat(s);
+        return isFinite(n) ? n : null;
+      }
+
+      // 테이블 로딩
+      async function loadProductionTableData() {
+        try {
+          console.log("🔄 Production 테이블 로딩...");
+          const data = await fetchSheetData("Production");
+          if (!data?.length) throw new Error();
+          const total = data.find((r) => r["지역"]?.toLowerCase() === "total");
+          if (!total) throw new Error();
+          const prod = total["Volume (bcf/d)"] || "N/A",
+            wow = total["WoW"] || "N/A",
+            yoy = total["YoY"] || "N/A";
+          document.querySelector("#production-table tbody").innerHTML = `
+                            <tr>
+                                <td>${prod}</td>
+                                <td class="${getChangeClass(
+                                  wow
+                                )}">${formatChangeValue(wow)}</td>
+                                <td class="${getChangeClass(
+                                  yoy
+                                )}">${formatChangeValue(yoy)}</td>
+                            </tr>`;
+        } catch {
+          console.error("❌ Production 테이블 실패");
+          showError("production-table", 3);
+        }
+      }
+
+      async function loadRegionalTableData() {
+        // Regional 테이블 사용 안 함
+      }
+
+      async function loadDemandTableData() {
+        try {
+          console.log("🔄 Demand 테이블 로딩...");
+          const data = await fetchSheetData("Demand");
+          if (!data?.length) throw new Error();
+          const total = data.find((r) => r["구분"]?.toLowerCase() === "total");
+          if (!total) throw new Error();
+          const dem = total["Volume (bcf/d)"] || "N/A",
+            wow = total["WoW"] || "N/A",
+            yoy = total["YoY"] || "N/A";
+          document.querySelector("#demand-table tbody").innerHTML = `
+                            <tr>
+                                <td>${dem}</td>
+                                <td class="${getChangeClass(
+                                  wow
+                                )}">${formatChangeValue(wow)}</td>
+                                <td class="${getChangeClass(
+                                  yoy
+                                )}">${formatChangeValue(yoy)}</td>
+                            </tr>`;
+        } catch {
+          console.error("❌ Demand 테이블 실패");
+          showError("demand-table", 3);
+        }
+      }
+
+      async function loadLNGTableData() {
+        try {
+          console.log("🔄 LNG 테이블 로딩...");
+          const data = await fetchSheetData("Demand");
+          if (!data?.length) throw new Error();
+          const lng = data.find((r) =>
+            r["구분"]?.toLowerCase().includes("lng")
+          );
+          if (!lng) throw new Error();
+          const dem = lng["수요"] || "N/A",
+            wow = lng["WoW"] || "N/A",
+            yoy = lng["YoY"] || "N/A";
+          document.querySelector("#lng-table tbody").innerHTML = `
+                            <tr>
+                                <td>${dem}</td>
+                                <td class="${getChangeClass(
+                                  wow
+                                )}">${formatChangeValue(wow)}</td>
+                                <td class="${getChangeClass(
+                                  yoy
+                                )}">${formatChangeValue(yoy)}</td>
+                            </tr>`;
+        } catch {
+          console.error("❌ LNG 테이블 실패");
+          showError("lng-table", 3);
+        }
+      }
+
+      async function loadStorageTableData() {
+        try {
+          console.log("🔄 Storage 테이블 로딩...");
+          const data = await fetchSheetData("Storage");
+          if (!data?.length) throw new Error();
+          const row = data[0];
+          const stock = row["This Week (bcf)"] || "N/A",
+            rate = row["%"] || "N/A",
+            wow = row["WoW"] || "N/A",
+            yoy = row["YoY"] || "N/A",
+            avg = row["5Y Avg."] || "N/A";
+          document.querySelector("#gas-storage-table tbody").innerHTML = `
+                            <tr>
+                                <td>${stock}</td>
+                                <td>${rate}</td>
+                                <td class="${getChangeClass(
+                                  wow
+                                )}">${formatIntegerValue(wow)}</td>
+                                <td class="${getChangeClass(
+                                  yoy
+                                )}">${formatIntegerValue(yoy)}</td>
+                                <td class="${getChangeClass(
+                                  avg
+                                )}">${formatIntegerValue(avg)}</td>
+                            </tr>`;
+        } catch {
+          console.error("❌ Storage 테이블 실패");
+          showError("gas-storage-table", 5);
+        }
+      }
+
+      function showError(tableId, colspan) {
+        const tb = document.getElementById(tableId)?.querySelector("tbody");
+        if (tb)
+          tb.innerHTML = `<tr><td colspan="${colspan}" class="error-message">데이터 로드 실패</td></tr>`;
+      }
+
+      // 샘플 데이터
+      function generateSampleData(base, varr, len) {
+        const a = [];
+        for (let i = 0; i < len; i++)
+          a.push(base + (Math.random() - 0.5) * varr);
+        return a;
+      }
+      function createSampleProductionChart() {
+        const m = [
+          "1월",
+          "2월",
+          "3월",
+          "4월",
+          "5월",
+          "6월",
+          "7월",
+          "8월",
+          "9월",
+          "10월",
+          "11월",
+          "12월",
+        ];
+        createProductionChart(
+          m,
+          generateSampleData(105, 5, 12),
+          generateSampleData(106.35, 4, 12)
+        );
+      }
+      function createSampleDemandChart() {
+        const m = [
+          "1월",
+          "2월",
+          "3월",
+          "4월",
+          "5월",
+          "6월",
+          "7월",
+          "8월",
+          "9월",
+          "10월",
+          "11월",
+          "12월",
+        ];
+        createDemandChart(
+          m,
+          generateSampleData(88, 8, 12),
+          generateSampleData(89.95, 6, 12)
+        );
+      }
+      function createSampleLNGChart() {
+        const year = new Date().getFullYear();
+        const rows = Array.from({ length: 12 }, (_, i) => {
+          const date = new Date(year, i, 1);
+          return {
+            date,
+            v24: 13.5 + (Math.random() - 0.5) * 1.5,
+            v25: 14 + (Math.random() - 0.5) * 1.2,
+          };
+        });
+        createLNGFeedgasChart(rows);
+      }
+      function createSampleRegionalChart() {
+        const d = Array.from({ length: 30 }, (_, i) =>
+          String(i + 1).padStart(2, "0")
+        );
+        createRegionalChart(
+          d,
+          generateSampleData(36.17, 3, 30),
+          generateSampleData(20.35, 2, 30),
+          generateSampleData(10.74, 1.5, 30)
+        );
+      }
+
+      // ================================
+      //   Production Chart (1/1~12/31)
+      // ================================
+      async function loadProductionChartData() {
+        try {
+          console.log("🔄 Production 차트 데이터 로딩...");
+          const data = await fetchSheetData("Production");
+          if (!data?.length) throw new Error("No production data");
+
+          const rows = data.filter(
+            (row) =>
+              row["Date"] &&
+              row["2024"] &&
+              typeof row["지역"] === "undefined" &&
+              typeof row["생산량 (bcf/d)"] === "undefined"
+          );
+          rows.sort((a, b) => {
+            const [ma, da] = a["Date"].split("/").map(Number);
+            const [mb, db] = b["Date"].split("/").map(Number);
+            return ma !== mb ? ma - mb : da - db;
+          });
+
+          const labels = rows.map((r) => {
+            const [month, day] = r["Date"].split("/");
+            return `${month.padStart(2, "0")}/${day.padStart(2, "0")}`;
+          });
+          const d1 = rows.map((r) => parseNumericValue(r["2024"]));
+          const d2 = rows.map((r) => parseNumericValue(r["2025"]));
+          createProductionChart(labels, d1, d2);
+          console.log("✅ Production 차트 생성 완료");
+        } catch (err) {
+          console.error("❌ Production 차트 로딩 실패:", err);
+          createSampleProductionChart();
+        }
+      }
+      function createProductionChart(labels, d1, d2) {
+        const ctx = document.getElementById("totalProductionChart");
+        if (!ctx) return;
+        if (window.totalProductionChart?.destroy)
+          window.totalProductionChart.destroy();
+        window.totalProductionChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "2024",
+                data: d1,
+                borderColor: "#d1d5db",
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+                spanGaps: true,
+              },
+              {
+                label: "2025",
+                data: d2,
+                borderColor: "#3b82f6",
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+                spanGaps: true,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "bottom", labels: { font: { size: 11 } } },
+              tooltip: { mode: "index", intersect: false },
+              title: {
+                display: true,
+                text: "U.S. Natural Gas Production",
+                font: { size: 12, weight: 'bold' },
+                color: '#475569',
+                padding: { top: 5, bottom: 10 }
+              }
+            },
+            scales: {
+              x: { 
+                ticks: { 
+                  font: { size: 10, style: 'normal' },
+                  maxTicksLimit: 12,
+                  maxRotation: 0
+                }, 
+                grid: { display: false } 
+              },
+              y: {
+                title: { display: true, text: "bcf/d", font: { size: 10 } },
+                ticks: { font: { size: 9 } },
+                beginAtZero: false,
+                suggestedMin: 95,
+                suggestedMax: 115
+              },
+            },
+          },
+        });
+      }
+
+      // ================================
+      //   Demand Chart (US Natural Gas)
+      // ================================
+      async function loadDemandChartData() {
+        try {
+          console.log("🔄 Demand 차트 데이터 로딩...");
+          const data = await fetchSheetData("Demand");
+          if (!data?.length) throw new Error("No demand data");
+
+          const rows = data.filter(
+            (row) =>
+              row["Date"] &&
+              row["2024"] &&
+              typeof row["구분"] === "undefined" &&
+              typeof row["수요"] === "undefined"
+          );
+          rows.sort((a, b) => {
+            const [ma, da] = a["Date"].split("/").map(Number);
+            const [mb, db] = b["Date"].split("/").map(Number);
+            return ma !== mb ? ma - mb : da - db;
+          });
+
+          const labels = rows.map((r) => {
+            const [month, day] = r["Date"].split("/");
+            return `${month.padStart(2, "0")}/${day.padStart(2, "0")}`;
+          });
+          const d1 = rows.map((r) => parseNumericValue(r["2024"]));
+          const d2 = rows.map((r) => parseNumericValue(r["2025"]));
+          createDemandChart(labels, d1, d2);
+          console.log("✅ Demand 차트 생성 완료");
+        } catch (err) {
+          console.error("❌ Demand 차트 로딩 실패:", err);
+          createSampleDemandChart();
+        }
+      }
+      function createDemandChart(labels, d1, d2) {
+        const ctx = document.getElementById("totalDemandChart");
+        if (!ctx) return;
+        if (window.totalDemandChart?.destroy) window.totalDemandChart.destroy();
+        window.totalDemandChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "2024",
+                data: d1,
+                borderColor: "#d1d5db",
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+                spanGaps: true,
+              },
+              {
+                label: "2025",
+                data: d2,
+                borderColor: "#3b82f6",
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+                spanGaps: true,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "bottom", labels: { font: { size: 11 } } },
+              tooltip: { mode: "index", intersect: false },
+              title: {
+                display: true,
+                text: "U.S. Natural Gas Demand",
+                font: { size: 12, weight: 'bold' },
+                color: '#475569',
+                padding: { top: 5, bottom: 10 }
+              }
+            },
+            scales: {
+              x: { 
+                ticks: { 
+                  font: { size: 10, style: 'normal' },
+                  maxTicksLimit: 12,
+                  maxRotation: 0
+                }, 
+                grid: { display: false } 
+              },
+              y: {
+                title: { display: true, text: "bcf/d", font: { size: 10 } },
+                ticks: { font: { size: 9 } },
+                beginAtZero: false,
+                suggestedMin: 70,
+                suggestedMax: 100
+              },
+            },
+          },
+        });
+      }
+
+      // ================================
+      //   Regional Chart
+      // ================================
+      async function loadRegionalChartData() {
+        try {
+          const data = await fetchSheetData("Production");
+          if (!data?.length) throw new Error("No regional data");
+          const today = new Date(),
+            year = today.getFullYear();
+          const slice365 = data.slice(0, 365);
+          const rows = slice365
+            .map((row) => {
+              const [mo, da] = row["Date"].split("/").map(Number);
+              const date = new Date(year-1, mo - 1, da);
+              return {
+                date,
+                app: parseNumericValue(row["Appalachia"]),
+                per: parseNumericValue(row["Permian"]),
+                hay: parseNumericValue(row["Haynesville"]),
+              };
+            })
+            .filter((r) => r.date <= today);
+          rows.sort((a, b) => a.date - b.date);
+          const labels = rows.map(
+            (r) =>
+              `${String(r.date.getMonth() + 1).padStart(2, "0")}/${String(
+                r.date.getDate()
+              ).padStart(2, "0")}`
+          );
+          const d1 = rows.map((r) => r.app),
+            d2 = rows.map((r) => r.per),
+            d3 = rows.map((r) => r.hay);
+          createRegionalChart(labels, d1, d2, d3);
+          console.log("✅ Regional 차트 생성 완료");
+        } catch (err) {
+          console.error("❌ Regional 차트 로딩 실패:", err);
+          createSampleRegionalChart();
+        }
+      }
+      function createRegionalChart(labels, d1, d2, d3) {
+        const ctx = document.getElementById("regionalProductionChart");
+        if (!ctx) return;
+        if (window.regionalProductionChart?.destroy)
+          window.regionalProductionChart.destroy();
+        window.regionalProductionChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "Appalachia",
+                data: d1,
+                yAxisID: "y",
+                spanGaps: true,
+                borderColor: "#3b82f6",
+                backgroundColor: "rgba(59,130,246,0.1)",
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+              },
+              {
+                label: "Permian",
+                data: d2,
+                yAxisID: "y1",
+                spanGaps: true,
+                borderColor: "#ef4444",
+                backgroundColor: "rgba(239,68,68,0.1)",
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+              },
+              {
+                label: "Haynesville",
+                data: d3,
+                yAxisID: "y1",
+                spanGaps: true,
+                borderColor: "#10b981",
+                backgroundColor: "rgba(16,185,129,0.1)",
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: { font: { size: 11 } },
+              },
+              tooltip: {
+                mode: "index",
+                intersect: false,
+              },
+              title: {
+                display: true,
+                text: "Regional Natural Gas Production",
+                font: { size: 12, weight: 'bold' },
+                color: '#475569',
+                padding: { top: 5, bottom: 10 }
+              }
+            },
+            scales: {
+              x: {
+                ticks: { 
+                  font: { size: 10, style: 'normal' },
+                  maxTicksLimit: 15,
+                  maxRotation: 0
+                },
+                grid: { display: false },
+              },
+              y: {
+                type: "linear",
+                display: true,
+                position: "left",
+                title: { display: true, text: "Appalachia (bcf/d)", font: { size: 9 } },
+                ticks: { font: { size: 9 } },
+                beginAtZero: false,
+                suggestedMin: 19,
+                suggestedMax: 37,
+              },
+              y1: {
+                type: "linear",
+                display: true,
+                position: "right",
+                title: { display: true, text: "Permian / Haynesville (bcf/d)", font: { size: 9 } },
+                grid: { drawOnChartArea: false },
+                ticks: { font: { size: 9 } },
+                beginAtZero: false,
+                suggestedMin: 7,
+                suggestedMax: 25,
+              },
+            },
+          },
+        });
+      }
+
+      // ================================
+      //   LNG Feedgas Demand Chart
+      // ================================
+      async function loadLNGChartData() {
+        try {
+          console.log("🔄 LNG Feedgas 차트 데이터 로딩...");
+          const data = await fetchSheetData("Demand");
+          if (!data?.length) throw new Error("No feedgas data");
+          const slice365 = data.slice(0, 365),
+            year = new Date().getFullYear();
+          const rows = slice365
+            .map((r) => {
+              if (!r["Date (FG)"]) return null;
+              const [mo, da] = r["Date (FG)"].split("/").map(Number);
+              return {
+                date: new Date(year, mo - 1, da),
+                v24: parseNumericValue(r["2024 (FG)"]),
+                v25: parseNumericValue(r["2025 (FG)"]),
+              };
+            })
+            .filter((r) => r && !isNaN(r.date));
+          if (!rows.length) {
+            console.warn("❌ 유효한 Feedgas 데이터 없음 → 샘플 차트 대체");
+            createSampleLNGChart();
+            return;
+          }
+          rows.sort((a, b) => a.date - b.date);
+          createLNGFeedgasChart(rows);
+          console.log("✅ LNG Feedgas 차트 생성 완료");
+        } catch (err) {
+          console.error("❌ LNG Feedgas 차트 로딩 실패:", err);
+          createSampleLNGChart();
+        }
+      }
+      function createLNGFeedgasChart(rows) {
+        const ctx = document.getElementById("lngFeedgasChart");
+        if (!ctx) return;
+        if (window.lngFeedgasChart?.destroy) window.lngFeedgasChart.destroy();
+
+        const year = rows[0].date.getFullYear();
+
+        window.lngFeedgasChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            datasets: [
+              {
+                label: "2024",
+                data: rows.map((r) => ({ x: r.date, y: r.v24 })),
+                spanGaps: true,
+                borderColor: "#d1d5db",
+                backgroundColor: "rgba(0,0,0,0)",
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+              },
+              {
+                label: "2025",
+                data: rows.map((r) => ({ x: r.date, y: r.v25 })),
+                spanGaps: true,
+                borderColor: "#3b82f6",
+                backgroundColor: "rgba(0,0,0,0)",
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: { font: { size: 11 } },
+              },
+              tooltip: {
+                mode: "index",
+                intersect: false,
+                callbacks: {
+                  title: function (context) {
+                    const d = new Date(context[0].parsed.x);
+                    const mm = String(d.getMonth() + 1).padStart(2, "0");
+                    const dd = String(d.getDate()).padStart(2, "0");
+                    return `${mm}/${dd}`;
+                  },
+                },
+              },
+              title: {
+                display: true,
+                text: "U.S. LNG Feedgas Demand",
+                font: { size: 12, weight: 'bold' },
+                color: '#475569',
+                padding: { top: 5, bottom: 10 }
+              }
+            },
+            scales: {
+              x: {
+                type: "time",
+                time: { unit: "day", displayFormats: { day: "MM/dd" } },
+                min: new Date(year, 0, 1),
+                max: new Date(year, 11, 31),
+                ticks: { 
+                  font: { size: 10, style: 'normal' }, 
+                  autoSkip: true, 
+                  maxRotation: 0,
+                  maxTicksLimit: 12
+                },
+                grid: { display: false },
+              },
+              y: {
+                title: { display: true, text: "bcf/d", font: { size: 10 } },
+                ticks: { font: { size: 9 } },
+                beginAtZero: false,
+                suggestedMin: 10,
+                suggestedMax: 20,
+              },
+            },
+          },
+        });
+      }
+
+      // ================================
+      //   Commentary Data Loading
+      // ================================
+      async function loadProductionCommentaryData() {
+        try {
+          console.log("🔄 Production Commentary 로딩...");
+          const data = await fetchSheetData("수급 Comment");
+          
+          // 데이터가 없거나 첫 번째 행이 없으면 기본값 표시
+          if (!data?.length || !data[0]) {
+            document.getElementById("production-commentary").innerHTML = "<p>데이터가 없습니다. 구글 시트에서 내용을 입력해주세요.</p>";
+            document.getElementById("production-commentary-timestamp").textContent = "N/A";
+            return;
+          }
+          
+          // Supply Content 컬럼에서 첫 번째 행 데이터 사용
+          const productionRow = data[0];
+          console.log("Production Row:", productionRow); // 디버깅용
+          
+          if (productionRow && productionRow["Supply Content"]) {
+            const content = productionRow["Supply Content"];
+            const timestamp = productionRow["Supply Date"] || "N/A";
+            console.log("Supply Content:", content); // 디버깅용
+            console.log("Supply Date:", timestamp); // 디버깅용
+            
+            document.getElementById("production-commentary").innerHTML =
+              content
+                .split("\n")
+                .map((line) => `<p>${line}</p>`)
+                .join("") || "<p>N/A</p>";
+            document.getElementById("production-commentary-timestamp").textContent = timestamp;
+          } else {
+            console.log("Supply Content not found in:", productionRow); // 디버깅용
+            document.getElementById("production-commentary").innerHTML = "<p>Supply Content가 비어있습니다.</p>";
+            document.getElementById("production-commentary-timestamp").textContent = "N/A";
+          }
+        } catch (err) {
+          console.error("Production Commentary 로드 실패:", err);
+          document.getElementById("production-commentary").innerHTML = "<p>데이터 로드에 실패했습니다.</p>";
+          document.getElementById("production-commentary-timestamp").textContent = "N/A";
+        }
+      }
+
+      async function loadDemandCommentaryData() {
+        try {
+          console.log("🔄 Demand Commentary 로딩...");
+          const data = await fetchSheetData("수급 Comment");
+          
+          // 데이터가 없거나 첫 번째 행이 없으면 기본값 표시
+          if (!data?.length || !data[0]) {
+            document.getElementById("demand-commentary").innerHTML = "<p>데이터가 없습니다. 구글 시트에서 내용을 입력해주세요.</p>";
+            document.getElementById("demand-commentary-timestamp").textContent = "N/A";
+            return;
+          }
+          
+          // Demand Content 컬럼에서 첫 번째 행 데이터 사용
+          const demandRow = data[0];
+          
+          if (demandRow && demandRow["Demand Content"]) {
+            const content = demandRow["Demand Content"];
+            const timestamp = demandRow["Demand Date"] || "N/A";
+            
+            document.getElementById("demand-commentary").innerHTML =
+              content
+                .split("\n")
+                .map((line) => `<p>${line}</p>`)
+                .join("") || "<p>N/A</p>";
+            document.getElementById("demand-commentary-timestamp").textContent = timestamp;
+          } else {
+            document.getElementById("demand-commentary").innerHTML = "<p>Demand Content가 비어있습니다.</p>";
+            document.getElementById("demand-commentary-timestamp").textContent = "N/A";
+          }
+        } catch (err) {
+          console.error("Demand Commentary 로드 실패:", err);
+          document.getElementById("demand-commentary").innerHTML = "<p>데이터 로드에 실패했습니다.</p>";
+          document.getElementById("demand-commentary-timestamp").textContent = "N/A";
+        }
+      }
+
+      // ================================
+      //   Load All Data
+      // ================================
+      async function loadFundamentalsData() {
+        console.log("🚀 Fundamentals 데이터 로딩 시작...");
+        try {
+          await Promise.all([
+            loadProductionTableData(),
+            loadDemandTableData(),
+            loadLNGTableData(),
+            loadProductionChartData(),
+            loadDemandChartData(),
+            loadRegionalChartData(),
+            loadLNGChartData(),
+            loadProductionCommentaryData(),
+            loadDemandCommentaryData(),
+          ]);
+          console.log("✅ Fundamentals 데이터 로딩 완료");
+        } catch (e) {
+          console.error("❌ Fundamentals 로드 실패:", e);
+        }
+      }
+
+      // ================================
+      // Overview 탭 관련 (기존 유지)
+      // ================================
+      async function loadHHPPriceData() {
+        try {
+          const data = await fetchSheetData("Price");
+          if (!data || data.length === 0) throw new Error("No data in Price");
+
+          const chartData = data.slice(3);
+
+          const validData = chartData.filter((row) => {
+            const allKeys = Object.keys(row);
+            const dateCol = allKeys[5];
+            const hCol = allKeys[7];
+            const iCol = allKeys[8];
+            const jCol = allKeys[9];
+            const kCol = allKeys[10];
+            const lCol = allKeys[11];
+
+            const hasDate =
+              row[dateCol] && row[dateCol] !== "" && row[dateCol] !== "N/A";
+            const hasNumericData = [hCol, iCol, jCol, kCol, lCol].some(
+              (col) =>
+                col &&
+                row[col] &&
+                row[col] !== "N/A" &&
+                !isNaN(parseFloat(row[col]))
+            );
+
+            return hasDate && hasNumericData;
+          });
+
+          if (validData.length === 0) return;
+
+          const reversedData = validData.reverse();
+          const allKeys = Object.keys(reversedData[0]);
+          const dateCol = allKeys[5];
+          const seriesColumns = [
+            allKeys[7],
+            allKeys[8],
+            allKeys[9],
+            allKeys[10],
+            allKeys[11],
+          ];
+          const seriesNames = ["Prompt", "M+1", "Cal 25", "Cal 26", "Cal 27"];
+          const colors = [
+            "#1e3a8a",
+            "#fca5a5",
+            "#6ee7b7",
+            "#fcd34d",
+            "#c4b5fd",
+          ];
+
+          const labels = [];
+          const seriesData = [[], [], [], [], []];
+
+          for (const row of reversedData) {
+            const dateRaw = row[dateCol];
+            const d = new Date(dateRaw);
+            if (isNaN(d)) continue;
+
+            const mm = String(d.getMonth() + 1).padStart(2, "0");
+            const dd = String(d.getDate()).padStart(2, "0");
+            const label = `${mm}/${dd}`;
+            labels.push(label);
+
+            seriesColumns.forEach((col, idx) => {
+              const v = parseFloat(row[col]);
+              seriesData[idx].push(isNaN(v) ? null : v);
+            });
+          }
+
+          // 마지막 날짜 기준 dummy label 추가
+          if (labels.length > 0) {
+            const [lastMM, lastDD] = labels[labels.length - 1]
+              .split("/")
+              .map(Number);
+            if (!isNaN(lastMM) && !isNaN(lastDD)) {
+              const base = new Date(new Date().getFullYear(), lastMM - 1, lastDD);
+              for (let i = 1; i <= 3; i++) {
+                const d = new Date(base);
+                d.setDate(base.getDate() + i);
+                const mm = String(d.getMonth() + 1).padStart(2, "0");
+                const dd = String(d.getDate()).padStart(2, "0");
+                labels.push(`${mm}/${dd}`);
+                seriesData.forEach((arr) => arr.push(null));
+              }
+            }
+          }
+
+          const datasets = seriesData.map((data, idx) => ({
+            label: seriesNames[idx],
+            data,
+            borderColor: colors[idx],
+            backgroundColor: colors[idx] + "20",
+            borderWidth: 2,
+            fill: false,
+            tension: 0.3,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            spanGaps: true,
+          }));
+
+          const ctx = document.getElementById("hhpPriceChart").getContext("2d");
+          if (window.hhpChart?.destroy) window.hhpChart.destroy();
+
+          window.hhpChart = new Chart(ctx, {
+            type: "line",
+            data: { labels, datasets },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { intersect: false, mode: "index" },
+              plugins: {
+                legend: {
+                  position: "bottom",
+                  labels: {
+                    usePointStyle: true,
+                    font: { size: 11 },
+                    padding: 15,
+                  },
+                },
+                tooltip: {
+                  mode: "index",
+                  intersect: false,
+                  backgroundColor: "rgba(0,0,0,0.8)",
+                  titleColor: "white",
+                  bodyColor: "white",
+                  callbacks: {
+                    title: (c) => `날짜: ${c[0].label}`,
+                    label: (c) =>
+                      `${c.dataset.label}: $${c.parsed.y?.toFixed(2) ?? "N/A"}`,
+                  },
+                },
+              },
+              scales: {
+                x: {
+                  type: "category",
+                  offset: true,
+                  ticks: {
+                    font: { size: 10, style: 'normal' },
+                    maxTicksLimit: 20,
+                    maxRotation: 0,
+                    callback: function (v, i) {
+                      return i % 3 === 0 ? this.getLabelForValue(v) : "";
+                    },
+                  },
+                  grid: { display: false },
+                },
+                y: {
+                  beginAtZero: false,
+                  ticks: { font: { size: 10 } },
+                  grid: { color: "rgba(0,0,0,0.05)" },
+                },
+              },
+              elements: {
+                point: { radius: 0, hoverRadius: 4 },
+              },
+            },
+          });
+
+          console.log("✅ labels 마지막:", labels.at(-1));
+          console.log("✅ Prompt 마지막:", seriesData[0].slice(-4));
+        } catch (e) {
+          console.error("❌ HHP 차트 실패:", e);
+        }
+      }
+
+      async function loadGasStorageData() {
+        try {
+          const data = await fetchSheetData("Storage");
+          if (!data?.length) throw new Error();
+          const row = data[54];
+          if (row) {
+            const tb = document.querySelector("#gas-storage-table tbody");
+            tb.innerHTML = `
+                                <tr>
+                                    <td>${row["Date"] || "N/A"}</td>
+                                    <td>${row["Week"] || "N/A"}</td>
+                                    <td class="${getChangeClass(
+                                      row["2019"]
+                                    )}">${formatIntegerValue(row["2019"])}</td>
+                                    <td class="${getChangeClass(
+                                      row["2020"]
+                                    )}">${formatIntegerValue(row["2020"])}</td>
+                                    <td class="${getChangeClass(
+                                      row["2021"]
+                                    )}">${formatIntegerValue(row["2021"])}</td>
+                                </tr>`;
+          }
+          const chartData = data
+            .slice(0, 53)
+            .filter((r) => r["Date"] && r["Date"] !== "N/A");
+          if (chartData.length) {
+            const labels = chartData.map((r) => {
+              const date = new Date(r["Date"]);
+              const month = String(date.getMonth() + 1).padStart(2, "0");
+              const day = String(date.getDate()).padStart(2, "0");
+              return `${month}/${day}`;
+            });
+            const high = chartData.map((r) => parseNumericValue(r["High"]));
+            const low = chartData.map((r) => parseNumericValue(r["Low"]));
+            const avg = chartData.map((r) =>
+              parseNumericValue(r["5 Year Average"])
+            );
+            const y25 = chartData.map((r) => parseNumericValue(r["2025"]));
+            const ds = [];
+            if (high.some((v) => v != null) && low.some((v) => v != null)) {
+              ds.push({
+                label: "High",
+                data: high,
+                backgroundColor: "rgba(59,130,246,0.15)",
+                borderColor: "rgba(59,130,246,0.3)",
+                borderWidth: 1,
+                fill: "+1",
+                tension: 0.3,
+                pointRadius: 0,
+                pointHoverRadius: 3,
+              });
+              ds.push({
+                label: "Low",
+                data: low,
+                backgroundColor: "rgba(59,130,246,0.15)",
+                borderColor: "rgba(59,130,246,0.3)",
+                borderWidth: 1,
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+                pointHoverRadius: 3,
+              });
+            }
+            if (avg.some((v) => v != null)) {
+              ds.push({
+                label: "5Y Average",
+                data: avg,
+                borderColor: "#64748b",
+                backgroundColor: "rgba(100,116,139,0.1)",
+                borderDash: [5, 5],
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+                pointHoverRadius: 3,
+              });
+            }
+            if (y25.some((v) => v != null)) {
+              ds.push({
+                label: "2025",
+                data: y25,
+                borderColor: "#3b82f6",
+                backgroundColor: "rgba(59,130,246,0.1)",
+                borderWidth: 2,
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+              });
+            }
+            const ctx = document
+              .getElementById("gasStorageChart")
+              .getContext("2d");
+            if (window.gasStorageChart?.destroy)
+              window.gasStorageChart.destroy();
+            window.gasStorageChart = new Chart(ctx, {
+              type: "line",
+              data: { labels, datasets: ds },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: "bottom",
+                    labels: {
+                      usePointStyle: true,
+                      padding: 15,
+                      font: { size: 11 },
+                    },
+                  },
+                  tooltip: {
+                    enabled: true,
+                    mode: "index",
+                    intersect: false,
+                    callbacks: {
+                      title(c) {
+                        return `날짜: ${c[0].label}`;
+                      },
+                      label(c) {
+                        return `${c.dataset.label}: ${c.parsed.y.toFixed(
+                          1
+                        )} bcf`;
+                      },
+                    },
+                  },
+                },
+                scales: {
+                  y: {
+                    beginAtZero: false,
+                    ticks: { font: { size: 10 } },
+                    grid: { color: "rgba(0,0,0,0.05)" },
+                  },
+                  x: {
+                    ticks: { font: { size: 10, style: 'normal' }, maxTicksLimit: 8, maxRotation: 0 },
+                    grid: { display: false },
+                  },
+                },
+                interaction: { intersect: false, mode: "index" },
+              },
+            });
+          }
+        } catch (e) {
+          console.error("❌ Gas Storage 실패:", e);
+        }
+      }
+
+      // ================================
+      //   AI Market Review와 타임스탬프 로드
+      // ================================
+      async function loadMarketReviewData() {
+        // (1) doGet으로 가져올 Web App URL
+        const url = `${WEB_APP_URL}?action=getLatest`;
+
+        try {
+          console.log("🔍 [Debug] doGet 요청 URL:", url);
+          const resp = await fetch(url);
+          console.log(
+            `🔍 [Debug] doGet 응답 상태: ${resp.status} ${resp.statusText}`
+          );
+
+          if (!resp.ok) {
+            const errorBody = await resp.text();
+            console.error(
+              `❌ 조회 실패 → 상태: ${resp.status}\n응답 본문:`,
+              errorBody
+            );
+            throw new Error(`HTTP error! status: ${resp.status}`);
+          }
+
+          // 반환된 JSON 구조: { content: "...", timestamp: "..." }
+          const { content, timestamp } = await resp.json();
+          console.log("✅ [Debug] doGet JSON:", { content, timestamp });
+
+          // 타임스탬프 표시
+          document.getElementById("review-timestamp").textContent =
+            timestamp || "N/A";
+
+          // 리뷰 본문 렌더링
+          const reviewRaw = content || "";
+          const formatted = reviewRaw
+            .split("\n")
+            .map((line) => line.trim())
+            .filter((line) => line !== "")
+            .map((line) => `<p>${line}</p>`)
+            .join("");
+          document.getElementById("market-review-content").innerHTML =
+            formatted || "<p>N/A</p>";
+        } catch (error) {
+          console.error(
+            "❌ [Error] AI Market Review 및 타임스탬프 로드 실패:",
+            error
+          );
+          document.getElementById("review-timestamp").textContent = "N/A";
+          document.getElementById("market-review-content").innerHTML =
+            "<p>N/A</p>";
+        }
+      }
+
+      async function loadMarketOutlookData() {
+        const url = `${WEB_APP_URL}?action=getOutlookLatest`;
+        try {
+          const resp = await fetch(url);
+          if (!resp.ok) throw new Error(await resp.text());
+          const { content, timestamp } = await resp.json();
+          // 내용 렌더링
+          document.getElementById("market-outlook-content").innerHTML =
+            content
+              .split("\n")
+              .map((line) => `<p>${line}</p>`)
+              .join("") || "<p>N/A</p>";
+          // (원한다면 별도 타임스탬프 영역에 표시)
+          // document.getElementById('outlook-timestamp').textContent = timestamp || 'N/A';
+        } catch (err) {
+          console.error("Market Outlook 로드 실패:", err);
+          document.getElementById("market-outlook-content").innerHTML =
+            "<p>N/A</p>";
+        }
+      }
+
+      function updateTimestamp() {
+        const now = new Date();
+        document.getElementById("current-timestamp").textContent =
+          now.toLocaleDateString("ko-KR", {
+            month: "2-digit",
+            day: "2-digit",
+            weekday: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          }) + " 기준";
+      }
+
+      function switchPage(pageName) {
+        document
+          .querySelectorAll(".page-container")
+          .forEach((p) => p.classList.remove("active"));
+        const tgt = document.getElementById(`${pageName}-page`);
+        if (tgt) {
+          tgt.classList.add("active", "fade-in");
+          setTimeout(() => tgt.classList.remove("fade-in"), 300);
+        }
+        if (pageName === "overview") loadAllData();
+        else if (pageName === "fundamentals") loadFundamentalsData();
+      }
+
+      async function loadAllData() {
+        console.log("🚀 Overview 로딩...");
+        try {
+          await Promise.all([
+            loadHHPPriceData(),
+            loadGasStorageData(),
+            loadStorageTableData(),
+            loadMarketReviewData(),
+            loadMarketOutlookData(),
+          ]);
+          console.log("✅ Overview 완료");
+        } catch (e) {
+          console.error("❌ Overview 실패:", e);
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        console.log("🎯 DOMContentLoaded");
+
+        const hhpParent = document.getElementById("hhp-parent");
+        const hhpSub = document.getElementById("hhp-submenu");
+
+        hhpParent.classList.add("expanded");
+        hhpSub.classList.add("expanded");
+
+        hhpParent.addEventListener("click", () => {
+          hhpParent.classList.toggle("expanded");
+          hhpSub.classList.toggle("expanded");
+        });
+
+        document
+          .getElementById("toggle-sidebar")
+          .addEventListener("click", function () {
+            const sidebar = document.querySelector(".sidebar");
+            const mainContent = document.querySelector(".main-content");
+            const icon = this.querySelector("i");
+
+            if (sidebar.classList.contains("collapsed")) {
+              sidebar.classList.remove("collapsed");
+              sidebar.classList.add("collapsing");
+              mainContent.classList.remove("collapsed");
+              sidebar.addEventListener("transitionend", function handler(e) {
+                if (e.propertyName === "width") {
+                  sidebar.classList.remove("collapsing");
+                  sidebar.removeEventListener("transitionend", handler);
+                }
+              });
+            } else {
+              sidebar.classList.add("collapsed");
+              mainContent.classList.add("collapsed");
+            }
+            icon.className = "fas fa-bars";
+          });
+
+        document.querySelectorAll(".sidebar-subitem").forEach((item) => {
+          item.addEventListener("click", () => {
+            document
+              .querySelectorAll(".sidebar-subitem")
+              .forEach((s) => s.classList.remove("active"));
+            item.classList.add("active");
+            const page = item.dataset.page;
+            const title = document.querySelector(".dashboard-title");
+            if (page === "overview") {
+              title.innerHTML =
+                '<i class="fas fa-burn"></i> HHP Market - Overview';
+            } else {
+              title.innerHTML =
+                '<i class="fas fa-burn"></i> HHP Market - Market Fundamentals';
+            }
+            switchPage(page);
+          });
+        });
+
+        document.querySelectorAll(".sidebar-item a").forEach((link) => {
+          link.addEventListener("click", function () {
+            document
+              .querySelectorAll(".sidebar-item")
+              .forEach((item) => item.classList.remove("active"));
+            this.parentElement.classList.add("active");
+            hhpParent.classList.remove("expanded");
+            hhpSub.classList.remove("expanded");
+          });
+        });
+
+        loadFundamentalsData();
+
+        // 1) "새로고침" 버튼에 스피너 & disable UX 적용
+        function attachSpinner(btnId, loaderFn) {
+          const btn = document.getElementById(btnId);
+          if (!btn) return;
+          btn.addEventListener("click", async () => {
+            const icon = btn.querySelector("i");
+            btn.disabled = true;
+            icon.classList.add("fa-spin");
+            try {
+              await loaderFn();
+            } catch (e) {
+              console.error(e);
+            } finally {
+              icon.classList.remove("fa-spin");
+              btn.disabled = false;
+            }
+          });
+        }
+
+        attachSpinner("refresh-market-review", loadMarketReviewData);
+        attachSpinner("refresh-gas-storage", loadGasStorageData);
+        attachSpinner("refresh-market-outlook", loadMarketOutlookData);
+        attachSpinner("refresh-production-commentary", loadProductionCommentaryData);
+        attachSpinner("refresh-demand-commentary", loadDemandCommentaryData);
+
+        // 2) AI 리뷰 ⇄ 에디터 UI 토글 (Trix)
+        //── AI 리뷰 Trix 토글 ──
+        const reviewContent = document.getElementById("market-review-content");
+        const reviewEditorBox = document.getElementById("review-editor");
+        const reviewInput = document.getElementById("review-input");
+
+        document
+          .getElementById("edit-review-btn")
+          .addEventListener("click", () => {
+            const box = document.getElementById("review-editor");
+			if (box.style.display === "block") {
+			// 이미 열려 있으면 닫고
+			box.style.display = "none";
+			} else {
+			// 닫혀 있으면 열기
+			document.getElementById("review-input").value =
+			document.getElementById("market-review-content").innerText.trim();
+			box.style.display = "block";
+			}
+			});
+
+        document
+          .getElementById("review-save-btn")
+          .addEventListener("click", async () => {
+            const payload = encodeURIComponent(reviewInput.value);
+            try {
+              const res = await fetch(WEB_APP_URL, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: `action=updateReview&content=${payload}`,
+              });
+              if ((await res.text()) === "OK") {
+                alert("저장되었습니다");
+                reviewEditorBox.style.display = "none";
+                reviewContent.style.display = "block";
+                await loadMarketReviewData();
+              } else throw new Error("저장실패");
+            } catch {
+              alert("저장에 실패했습니다");
+            }
+          });
+
+        //── Market Outlook 토글 ──
+        const outContent = document.getElementById("market-outlook-content");
+        const outEditorBox = document.getElementById("outlook-editor");
+        const outInput = document.getElementById("outlook-input"); // (혹은 textarea id)
+
+        document
+          .getElementById("edit-outlook-btn")
+          .addEventListener("click", () => {
+            const box = document.getElementById("outlook-editor");
+			if (box.style.display === "block") {
+			// 이미 열려 있으면 닫고
+			box.style.display = "none";
+			} else {
+			// 닫혀 있으면 열기
+			document.getElementById("outlook-input").value =
+			document.getElementById("market-outlook-content").innerText.trim();
+			box.style.display = "block";
+			}
+			});
+
+        document
+          .getElementById("outlook-save-btn")
+          .addEventListener("click", async () => {
+            const payload = encodeURIComponent(outInput.value);
+            try {
+              const res = await fetch(WEB_APP_URL, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: `action=updateOutlook&content=${payload}`,
+              });
+              if ((await res.text()) === "OK") {
+                alert("저장되었습니다");
+                outEditorBox.style.display = "none";
+                outContent.style.display = "block";
+                await loadMarketOutlookData();
+              } else throw new Error();
+            } catch {
+              alert("저장에 실패했습니다");
+            }
+          });
+
+        //── Production Commentary 토글 ──
+        const prodCommentaryContent = document.getElementById("production-commentary");
+        const prodCommentaryEditorBox = document.getElementById("production-commentary-editor");
+        const prodCommentaryInput = document.getElementById("production-commentary-input");
+
+        document
+          .getElementById("edit-production-commentary-btn")
+          .addEventListener("click", async () => {
+            const box = document.getElementById("production-commentary-editor");
+            const btn = document.getElementById("edit-production-commentary-btn");
+            const icon = btn.querySelector("i");
+            
+            if (box.style.display === "block") {
+              // 에디터가 열려있으면 저장 실행
+              const content = prodCommentaryInput.value;
+              try {
+                const res = await fetch(WEB_APP_URL, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                  },
+                  body: `action=updateCommentary&type=production&content=${encodeURIComponent(content)}`,
+                });
+                
+                if (res.ok && (await res.text()) === "OK") {
+                  alert("저장되었습니다");
+                  box.style.display = "none";
+                  await loadProductionCommentaryData();
+                  icon.className = "fas fa-edit";
+                  btn.title = "편집";
+                } else {
+                  throw new Error("저장 실패");
+                }
+              } catch (error) {
+                console.error("저장 실패:", error);
+                alert("저장에 실패했습니다. 구글 시트에서 직접 수정해주세요.");
+              }
+            } else {
+              // 에디터가 닫혀있으면 열기
+              document.getElementById("production-commentary-input").value =
+                document.getElementById("production-commentary").innerText.trim();
+              box.style.display = "block";
+              icon.className = "fas fa-save";
+              btn.title = "저장";
+            }
+          });
+
+        //── Demand Commentary 토글 ──
+        const demCommentaryContent = document.getElementById("demand-commentary");
+        const demCommentaryEditorBox = document.getElementById("demand-commentary-editor");
+        const demCommentaryInput = document.getElementById("demand-commentary-input");
+
+        document
+          .getElementById("edit-demand-commentary-btn")
+          .addEventListener("click", async () => {
+            const box = document.getElementById("demand-commentary-editor");
+            const btn = document.getElementById("edit-demand-commentary-btn");
+            const icon = btn.querySelector("i");
+            
+            if (box.style.display === "block") {
+              // 에디터가 열려있으면 저장 실행
+              const content = demCommentaryInput.value;
+              try {
+                const res = await fetch(WEB_APP_URL, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                  },
+                  body: `action=updateCommentary&type=demand&content=${encodeURIComponent(content)}`,
+                });
+                
+                if (res.ok && (await res.text()) === "OK") {
+                  alert("저장되었습니다");
+                  box.style.display = "none";
+                  await loadDemandCommentaryData();
+                  icon.className = "fas fa-edit";
+                  btn.title = "편집";
+                } else {
+                  throw new Error("저장 실패");
+                }
+              } catch (error) {
+                console.error("저장 실패:", error);
+                alert("저장에 실패했습니다. 구글 시트에서 직접 수정해주세요.");
+              }
+            } else {
+              // 에디터가 닫혀있으면 열기
+              document.getElementById("demand-commentary-input").value =
+                document.getElementById("demand-commentary").innerText.trim();
+              box.style.display = "block";
+              icon.className = "fas fa-save";
+              btn.title = "저장";
+            }
+          });
+      });
+
+      // PDF 저장 버튼 이벤트
+      document
+        .getElementById("save-pdf-btn")
+        .addEventListener("click", async function () {
+          const element = document.querySelector(".main-content");
+          const scrollAreas = element.querySelectorAll(".scroll-wrapper");
+
+          // 스크롤 영역 높이 확장
+          scrollAreas.forEach((area) => {
+            area.dataset.originalHeight = area.style.height;
+            area.dataset.originalOverflow = area.style.overflow;
+            area.style.height = area.scrollHeight + "px";
+            area.style.overflow = "visible";
+          });
+
+          const now = new Date();
+          const pad = (n) => n.toString().padStart(2, "0");
+          const fileName = `HHP_Market_${now.getFullYear()}${pad(
+            now.getMonth() + 1
+          )}${pad(now.getDate())}${pad(now.getHours())}${pad(
+            now.getMinutes()
+          )}${pad(now.getSeconds())}.pdf`;
+
+          const opt = {
+            margin: 0,
+            filename: fileName,
+            image: { type: "jpeg", quality: 1 },
+            html2canvas: {
+              scale: 4,
+              useCORS: true,
+              scrollY: -window.scrollY,
+            },
+            jsPDF: {
+              orientation: "landscape",
+              unit: "px",
+              format: [element.scrollWidth, element.scrollHeight],
+            },
+          };
+
+          await html2pdf().set(opt).from(element).save();
+
+          // 원래 상태 복원
+          scrollAreas.forEach((area) => {
+            area.style.height = area.dataset.originalHeight;
+            area.style.overflow = area.dataset.originalOverflow;
+          });
+        });
+    </script>
+  </body>
+</html>
